@@ -1,0 +1,1 @@
+Objašnjenje fizičkog problema

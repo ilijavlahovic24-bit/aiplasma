@@ -1,0 +1,2 @@
+#Data transformation is a critical part of the data integration process in which raw data is converted into a unified format or structure.
+# Data transformation ensures compatibility with target systems and enhances data quality and usability.

@@ -1,0 +1,33 @@
+# Virtual environment
+.venv2/
+venv/
+env/
+ENV/
+
+# PyCharm
+.idea/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / build
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Logs and model checkpoints
+*.log
+checkpoints/
+*.pt
+*.pth
+
+#Reference that have been used
+doc/references/
