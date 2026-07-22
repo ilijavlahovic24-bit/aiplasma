@@ -34,15 +34,14 @@ def make_heat_equation_batch(
         ∂u/∂t = α · ∂²u/∂x²
     na domenu x ∈ [0, 1], t ∈ [0, 1].
 
-    Tačno rešenje (početni uslov: sin(πx)):
+    Right solution (initial state: sin(πx)):
         u(x, t) = sin(πx) · exp(-α · π² · t)
     """
-    # ── Koordinate (x, t) ────────────────────────────────────────────────────
+    # ── Cordinates (x, t) ────────────────────────────────────────────────────
     x = torch.rand(n_points, device=device)
     t = torch.rand(n_points, device=device)
     coords = torch.stack([x, t], dim=1)  # (N, 2)
 
-    # ── Tačno rešenje kao "mereni" fields ────────────────────────────────────
     import math
     u_exact = torch.sin(math.pi * x) * torch.exp(
         torch.tensor(-alpha * math.pi ** 2) * t
@@ -71,9 +70,9 @@ def make_multifidelity_batches(
 ) -> list[FeatureBatch]:
     """
     Vraća tri fidelity nivoa istog problema:
-      - Level 0: malo tačaka, gruba aproksimacija
-      - Level 1: srednji broj tačaka
-      - Level 2: mnogo tačaka, fine rešenje
+      - Level 0:  coarse approximation, small number of points
+      - Level 1: middle approximation, medium number of points
+      - Level 2: fine solution, large number of points
     """
     configs = [
         {"n_points": 50,  "fidelity_level": 0, "fidelity_weight": 0.2},
@@ -94,7 +93,7 @@ class ModelOutput:
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# 2. PhysicsModel — apstraktna baza
+# 2. PhysicsModel — abstract base
 # ════════════════════════════════════════════════════════════════════════════
 
 class PhysicsModel(nn.Module, ABC):
@@ -116,7 +115,7 @@ class PhysicsModel(nn.Module, ABC):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# 3. PhysicsProblem — apstraktna baza
+# 3. PhysicsProblem — abstract base
 # ════════════════════════════════════════════════════════════════════════════
 
 class PhysicsProblem(ABC):
@@ -257,7 +256,7 @@ class BaseTrainer(ABC):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# 5. Konkretne implementacije za smoke test
+# 5. CConcrete implementation of smoke test
 # ════════════════════════════════════════════════════════════════════════════
 
 class HeatEquationProblem(PhysicsProblem):
@@ -279,7 +278,6 @@ class HeatEquationProblem(PhysicsProblem):
         coords = batch.coords.requires_grad_(True)
 
         # Re-run forward da dobijemo autograd graph
-        # (u smoke testu prosleđujemo pred direktno jer coords već ima grad)
         u = pred[batch.collocation_mask]
         if u.numel() == 0:
             return torch.tensor(0.0, requires_grad=True)
