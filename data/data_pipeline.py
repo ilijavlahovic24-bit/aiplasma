@@ -4,5 +4,6 @@
 #Data exploration
 #Feature engineering
 #Data splitting
+from data_transformer import DataTransformer
 
-from data import data_transformer
+DataTransformer = DataTransformer()
