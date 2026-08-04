@@ -89,3 +89,182 @@ class DataSource(ABC):
 
 
 
+#Concrete implementations
+
+class SyntheticDataSource(DataSource):
+    """
+   Generates synthetic data from a given analytical solution.
+    Useful for testing and benchmarking.
+
+    Primer:
+        source = SyntheticDataSource(
+            solution_fn=lambda x, t: torch.sin(math.pi * x) * torch.exp(-0.01 * math.pi**2 * t),
+            config=DataSourceConfig(
+                coord_system=CoordinateSystem.CARTESIAN,
+                units=UnitSystem(spatial="m", temporal="s", field="normalized"),
+                domain=Domain(x_range=(0.0, 1.0), t_range=(0.0, 1.0)),
+            ),
+            n_points=500,
+        )
+        tensor = source.load()
+    """
+
+    def __init__(
+            self,
+            solution_fn,  # callable: (x: Tensor, t: Tensor) -> Tensor
+            config: DataSourceConfig,
+            n_points: int = 500,
+            noise_std: float = 0.0,
+    ):
+        super().__init__(config)
+        self.solution_fn = solution_fn
+        self.n_points = n_points
+        self.noise_std = noise_std
+
+    def validate(self) -> bool:
+        if self.config.domain is None:
+            print("[SyntheticDataSource] ERROR: domain not defined in config.")
+            return False
+        if self.config.units is None:
+            print("[SyntheticDataSource] ERROR: units not defined in config.")
+            return False
+        return True
+
+    def load(self) -> PhysicalTensor:
+        if not self.validate():
+            raise ValueError("DataSource validacija nije prošla. Proveri config.")
+
+        domain = self.config.domain
+
+        # ── Generating coordinates───────────────────────────────────────────
+        x = torch.rand(self.n_points)
+        if domain.x_range:
+            x = x * (domain.x_range[1] - domain.x_range[0]) + domain.x_range[0]
+
+        t = torch.rand(self.n_points)
+        t = t * (domain.t_range[1] - domain.t_range[0]) + domain.t_range[0]
+
+        coordinates = torch.stack([x, t], dim=1)  # (N, 2)
+
+        # ── Analitical solution as value ────────────────────────────────
+        values = self.solution_fn(x, t).unsqueeze(1)  # (N, 1)
+
+        # ── Optional Noise─────────────────────────────────────────────────────
+        if self.noise_std > 0.0:
+            values = values + torch.randn_like(values) * self.noise_std
+
+        # ── Number of points ─────────────────────────────────────────
+        if self.config.max_points is not None:
+            idx = torch.randperm(self.n_points)[:self.config.max_points]
+            values = values[idx]
+            coordinates = coordinates[idx]
+
+        return PhysicalTensor(
+            values=values,
+            coordinates=coordinates,
+            units=self.config.units,
+            coord_system=self.config.coord_system,
+            domain=domain,
+            metadata={
+                **self.config.metadata,
+                "source_type": "synthetic",
+                "n_points": self.n_points,
+                "noise_std": self.noise_std,
+            },
+        )
+
+
+class CSVDataSource(DataSource):
+    """
+    Load data from CSV file.
+
+    Expected format :
+        x, t, u         ←  1D problem
+        x, y, t, u, v  ←  2D problem
+
+    EXample:
+        source = CSVDataSource(
+            path="data/plasma_measurements.csv",
+            field_columns=["density", "temperature"],
+            config=DataSourceConfig(
+                coord_system=CoordinateSystem.TOROIDAL,
+                units=UnitSystem(spatial="m", temporal="s", field="keV"),
+                domain=Domain(x_range=(0.0, 1.0), t_range=(0.0, 10.0)),
+            )
+        )
+    """
+
+    def __init__(
+            self,
+            path: str,
+            field_columns: list[str],
+            config: DataSourceConfig,
+    ):
+        super().__init__(config)
+        self.path = Path(path)
+        self.field_columns = field_columns
+
+    def validate(self) -> bool:
+        if not self.path.exists():
+            print(f"[CSVDataSource] ERROR: file not found: {self.path}")
+            return False
+        if self.config.units is None:
+            print("[CSVDataSource] ERRROR: units not defined in config-u.")
+            return False
+        return True
+
+    def load(self) -> PhysicalTensor:
+        if not self.validate():
+            raise ValueError(f"DataSource validaiton failed: {self.path}")
+
+        import csv
+        rows = []
+        with open(self.path, newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append({k: float(v) for k, v in row.items()})
+
+        # ── Koordinate i vrednosti iz kolona ────────────────────────────────
+        coord_cols = [c for c in rows[0].keys() if c not in self.field_columns]
+        coordinates = torch.tensor([[r[c] for c in coord_cols] for r in rows])
+        values = torch.tensor([[r[c] for c in self.field_columns] for r in rows])
+
+        if self.config.max_points is not None:
+            idx = torch.randperm(len(rows))[:self.config.max_points]
+            coordinates = coordinates[idx]
+            values = values[idx]
+
+        return PhysicalTensor(
+            values=values,
+            coordinates=coordinates,
+            units=self.config.units,
+            coord_system=self.config.coord_system,
+            domain=self.config.domain or Domain(t_range=(0.0, 1.0)),
+            metadata={
+                **self.config.metadata,
+                "source_type": "csv",
+                "path": str(self.path),
+                "field_columns": self.field_columns,
+            },
+        )
+
+
+class HDF5DataSource(DataSource):
+    """
+    Stub for HDF5 izvor — typical format for simulations(GENE, GS2, CGYRO).
+
+    implemntation comes after getting real-life datasets
+    """
+
+    def __init__(self, path: str, config: DataSourceConfig):
+        super().__init__(config)
+        self.path = Path(path)
+
+    def validate(self) -> bool:
+        raise NotImplementedError("HDF5DataSource.validate() — coming soon.")
+
+    def load(self) -> PhysicalTensor:
+        raise NotImplementedError(
+            "HDF5DataSource.load() — coming soon.\n"
+            "Planned implementation: h5py za loading GENE/GS2 input files."
+        )
