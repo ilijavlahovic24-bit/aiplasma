@@ -253,7 +253,6 @@ class HDF5DataSource(DataSource):
     """
     Stub for HDF5 izvor — typical format for simulations(GENE, GS2, CGYRO).
 
-    implemntation comes after getting real-life datasets
     """
 
     def __init__(self, path: str, config: DataSourceConfig):
@@ -261,10 +260,69 @@ class HDF5DataSource(DataSource):
         self.path = Path(path)
 
     def validate(self) -> bool:
-        raise NotImplementedError("HDF5DataSource.validate() — coming soon.")
+        if not self.path.exists():
+            print(f"[HDF5DataSource] GREŠKA: fajl nije pronađen: {self.path}")
+            return False
+        try:
+            import h5py
+            with h5py.File(self.path, "r") as f:
+                keys = list(f.keys())
+                if not keys:
+                    print("[HDF5DataSource] GREŠKA: HDF5 fajl je prazan.")
+                    return False
+            return True
+        except ImportError:
+            print("[HDF5DataSource] GREŠKA: h5py nije instaliran. pip install h5py")
+            return False
+        except Exception as e:
+            print(f"[HDF5DataSource] GREŠKA pri otvaranju fajla: {e}")
+            return False
 
     def load(self) -> PhysicalTensor:
-        raise NotImplementedError(
-            "HDF5DataSource.load() — coming soon.\n"
-            "Planned implementation: h5py za loading GENE/GS2 input files."
+        if not self.validate():
+            raise ValueError(f"HDF5DataSource validacija nije prošla za: {self.path}")
+
+        import h5py
+        with h5py.File(self.path, "r") as f:
+            # Pretpostavka o strukturi HDF5 fajla iz GENE/GS2/CGYRO:
+            #   /coordinates — prostorno-vremenski grid, shape (N, D)
+            #   /fields      — fizička polja, shape (N, F)
+            # Ako fajl ima drugačiju strukturu, korisnik override-uje _parse_hdf5()
+            coords = torch.tensor(f["coordinates"][:], dtype=torch.float32)
+            values = torch.tensor(f["fields"][:], dtype=torch.float32)
+
+            # Metadata iz HDF5 atributa ako postoje
+            meta = dict(self.config.metadata)
+            if "experiment_id" in f.attrs:
+                meta["experiment_id"] = str(f.attrs["experiment_id"])
+            if "instrument" in f.attrs:
+                meta["instrument"] = str(f.attrs["instrument"])
+
+        if self.config.max_points is not None:
+            idx = torch.randperm(coords.shape[0])[:self.config.max_points]
+            coords = coords[idx]
+            values = values[idx]
+
+        return PhysicalTensor(
+            values=values,
+            coordinates=coords,
+            units=self.config.units or UnitSystem(
+                spatial="m", temporal="s", field="normalized"
+            ),
+            coord_system=self.config.coord_system,
+            domain=self.config.domain or Domain(t_range=(0.0, 1.0)),
+            metadata={**meta, "source_type": "hdf5", "path": str(self.path)},
+        )
+
+    def _parse_hdf5(self, f) -> tuple:
+        """
+        Hook za custom parsiranje HDF5 strukture.
+        Override kada Vinča podaci imaju drugačiji layout od pretpostavljenog.
+
+        Returns:
+            tuple: (coordinates: Tensor, values: Tensor)
+        """
+        return (
+            torch.tensor(f["coordinates"][:], dtype=torch.float32),
+            torch.tensor(f["fields"][:], dtype=torch.float32),
         )
