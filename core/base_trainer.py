@@ -51,19 +51,19 @@ class BaseTrainer(ABC):
         self.history = TrainingHistory()
         self._setup_device()
 
-    # ── Korisnik MORA da implementira ───────────────────────────
+    # ── User must implement ───────────────────────────
 
     @abstractmethod
     def train_step(self, batch: FeatureBatch) -> Tensor:
-        """Jedan korak treninga. Vraća loss za tu iteraciju."""
+        """One step fromtraining. Return loss for that iteration."""
         ...
 
     @abstractmethod
     def val_step(self, batch: FeatureBatch) -> Tensor:
-        """Jedan korak validacije. Vraća loss za tu iteraciju."""
+        """One step of validations. returns loss for that iteration."""
         ...
 
-    # ── Framework pruža — fit() je sealed ───────────────────────
+    # ── Framework has — fit() us sealed ───────────────────────
 
     def fit(
         self,
@@ -85,7 +85,7 @@ class BaseTrainer(ABC):
                 train_losses.append(loss.item())
             epoch_train_loss = sum(train_losses) / len(train_losses)
 
-            # ── Validacija ──────────────────────────────────────
+            # ── Validation ──────────────────────────────────────
             epoch_val_loss = None
             if val_loader and epoch % self.config.val_frequency == 0:
                 self.model.eval()
@@ -112,7 +112,7 @@ class BaseTrainer(ABC):
         self._fire("on_train_end", history=self.history)
         return self.history
 
-    # ── Interni framework metodi ─────────────────────────────────
+    # ── Internal framework methods ─────────────────────────────────
 
     def _setup_device(self) -> None:
         if self.config.distributed:

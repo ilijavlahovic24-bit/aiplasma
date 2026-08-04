@@ -7,9 +7,9 @@ from torch import Tensor
 
 
 class CoordinateSystem(Enum):
-    CARTESIAN = "cartesian"  # (x, y, z, t)       — general purpose
-    CYLINDRICAL = "cylindrical"  # (r, z, φ, t)        — axis symetry
-    TOROIDAL = "toroidal"  # (r, θ, φ, t)        — tokamak geometry
+    CARTESIAN = "cartesian"  # (x, y, z, t)       - general purpose
+    CYLINDRICAL = "cylindrical"  # (r, z, φ, t)        - axis symetry
+    TOROIDAL = "toroidal"  # (r, θ, φ, t)        - tokamak geometry
     CUSTOM = "custom"  # user defines
 
 
@@ -75,3 +75,79 @@ class Domain:
         ranges.append(f"t∈{self.t_range}")
         return f"Domain({', '.join(ranges)})"
 
+
+
+@dataclass
+class PhysicalTensor:
+    """
+    An internal type that carries physical data through the AIPlasma pipeline.
+
+    Each transition between pipeline layers is a transformation of this type.
+    fidelity_level is not assigned here
+    it is assigned only in Preprocessing phase (FidelityAssigner) because
+    it is a relational property, not an absolute one.
+
+    Attributes:
+    values - physical fields, form (N, F) where F = field number
+    coordinates - space-time input, form (N, D) where D = number dim.
+    units - physical units of values and coordinates
+    coord_system- coordinate system geometry
+    domain - space-time range of data
+    metadata - source, instrument, experiment ID, and more
+    """
+    values: Tensor
+    coordinates: Tensor
+    units: UnitSystem
+    coord_system: CoordinateSystem
+    domain: Domain
+    metadata: dict = field(default_factory=dict)
+
+    # ── Validation ───────────────────────────────────────────────────────────
+
+    def __post_init__(self):
+        if self.values.shape[0] != self.coordinates.shape[0]:
+            raise ValueError(
+                f"values i coordinates moraju imati isti broj tačaka. "
+                f"Dobijeno: values={self.values.shape[0]}, "
+                f"coordinates={self.coordinates.shape[0]}"
+            )
+
+    # ── Utility methods ───────────────────────────────────────────────────────
+
+    def n_points(self) -> int:
+        return self.values.shape[0]
+
+    def n_fields(self) -> int:
+        return self.values.shape[1] if self.values.dim() > 1 else 1
+
+    def spatial_resolution(self) -> float:
+        if self.domain.x_range is None:
+            return float("inf")
+        x_span = self.domain.x_range[1] - self.domain.x_range[0]
+        return x_span / max(self.n_points(), 1)
+
+    def temporal_resolution(self) -> float:
+        t_span = self.domain.t_range[1] - self.domain.t_range[0]
+        return t_span / max(self.n_points(), 1)
+
+    def to(self, device: str) -> "PhysicalTensor":
+        """Premešta tenzore na zadati device."""
+        return PhysicalTensor(
+            values=self.values.to(device),
+            coordinates=self.coordinates.to(device),
+            units=self.units,
+            coord_system=self.coord_system,
+            domain=self.domain,
+            metadata=self.metadata,
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"PhysicalTensor(\n"
+            f"  points={self.n_points()}, fields={self.n_fields()},\n"
+            f"  coord_system={self.coord_system.value},\n"
+            f"  {self.units},\n"
+            f"  {self.domain},\n"
+            f"  metadata_keys={list(self.metadata.keys())}\n"
+            f")"
+        )

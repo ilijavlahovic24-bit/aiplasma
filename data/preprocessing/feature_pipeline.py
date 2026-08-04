@@ -4,10 +4,10 @@ from torch import Tensor
 
 @dataclass
 class FeatureBatch:
-    coords: Tensor            # (N, d) — prostorno-vremenski ulaz za PINN
-    fields: Tensor            # (N, f) — izmerene veličine
-    boundary_mask: Tensor     # (N,) bool — koja tačka je BC
-    collocation_mask: Tensor  # (N,) bool — interior tačke za PDE residual
+    coords: Tensor            # (N, d)
+    fields: Tensor            # (N, f)
+    boundary_mask: Tensor     # (N,) bool
+    collocation_mask: Tensor  # (N,) bool
     physics_params: dict      # Re, beta, magnetic field strength
-    fidelity_level: int       # 0 = najgrublje, N = najfinije
-    fidelity_weight: float    # koliko ovaj nivo doprinosi loss-u
+    fidelity_level: int       # 0 = coarse, N = fine
+    fidelity_weight: float    # how much this level affects loss-u

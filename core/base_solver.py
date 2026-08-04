@@ -27,19 +27,19 @@ class SolverOutput:
 
 class PhysicsSolver(ABC):
 
-    # ── Korisnik MORA da implementira ───────────────────────────
+    # ── User must implement ───────────────────────────
 
     @abstractmethod
     def solve(self, output: ModelOutput, batch: FeatureBatch) -> SolverOutput:
-        """Post-processing i evaluacija bez autograd-a."""
+        """Post-processing and evaluation without autograd-a."""
         ...
 
     @abstractmethod
     def solve_with_grad(self, model: PhysicsModel, batch: FeatureBatch) -> SolverOutput:
-        """PDE residual tokom treninga — autograd kroz model."""
+        """PDE residual during training - autograd without model."""
         ...
 
-    # ── Framework pruža ─────────────────────────────────────────
+    # ── Framework has ─────────────────────────────────────────
 
     def timed_solve(self, output: ModelOutput, batch: FeatureBatch) -> SolverOutput:
         """solve() sa automatskim merenjem wall_time."""
@@ -49,14 +49,12 @@ class PhysicsSolver(ABC):
         return result
 
     def timed_solve_with_grad(self, model: PhysicsModel, batch: FeatureBatch) -> SolverOutput:
-        """solve_with_grad() sa automatskim merenjem wall_time."""
         start = time.perf_counter()
         result = self.solve_with_grad(model, batch)
         result.solver_info.wall_time = time.perf_counter() - start
         return result
 
     def validate_output(self, output: SolverOutput) -> None:
-        """Proverava da SolverOutput ima očekivane ključeve."""
         if not output.quantities:
             raise ValueError("SolverOutput.quantities ne sme biti prazan.")
         if not output.residuals:
@@ -64,18 +62,15 @@ class PhysicsSolver(ABC):
 
 
 class ODESolver(PhysicsSolver, ABC):
-    """Baza za solver-e vremenski zavisnih problema (ODE sistemi)."""
+    """Base solver for time dependent(ODE system)."""
 
     @abstractmethod
     def step(self, model: PhysicsModel, batch: FeatureBatch, dt: float) -> SolverOutput:
-        """Jedan vremenski korak integracije."""
+        """one step of integration."""
         ...
 
-
+#Base for Solver for Partial Differential Equations
 class PDESolver(PhysicsSolver, ABC):
-    """Baza za solver-e prostorno-vremenskih problema (PDE sistemi)."""
-
     @abstractmethod
     def compute_derivatives(self, pred: Tensor, coords: Tensor) -> dict[str, Tensor]:
-        """Prostorne i vremenske derivacije kroz autograd."""
-        ...
+       pass

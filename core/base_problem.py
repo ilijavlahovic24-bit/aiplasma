@@ -10,7 +10,7 @@ from torch import Tensor
 from data.preprocessing.feature_pipeline import FeatureBatch
 class PhysicsProblem(ABC):
 
-    # ── Korisnik MORA da definiše ────────────────────────────────
+    # User must Define
 
     @abstractmethod
     def pde_residual(self, batch: FeatureBatch, pred: Tensor) -> Tensor:
@@ -25,7 +25,7 @@ class PhysicsProblem(ABC):
     # ── Korisnik MOŽE da override-uje ───────────────────────────
 
     def loss(self, batch: FeatureBatch, pred: Tensor) -> Tensor:
-        """Default multi-fidelity loss. Override za custom ponašanje."""
+        """Default multi-fidelity loss. Override for custom behaviour."""
         w = self.fidelity_weights()
         i = batch.fidelity_level
 
@@ -33,15 +33,15 @@ class PhysicsProblem(ABC):
         pde_loss  = torch.mean(self.pde_residual(batch, pred) ** 2)
         bc_loss   = torch.mean(self.boundary_conditions(batch, pred) ** 2)
 
-        return w[i] * (self.λ1 * data_loss
-                     + self.λ2 * pde_loss
-                     + self.λ3 * bc_loss)
+        return w[i] * (self.lambda1 * data_loss
+                     + self.lambda2 * pde_loss
+                     + self.lambda3 * bc_loss)
 
     def physics_params(self) -> dict:
         return {}
 
     def fidelity_weights(self) -> list[float]:
-        """Default: uniformne težine."""
+        """Default: uniform weights."""
         levels = self._infer_fidelity_levels()
         return [1.0 / levels] * levels
 
@@ -53,8 +53,8 @@ class PhysicsProblem(ABC):
     def compile(self) -> "CompiledProblem":
         ...
 
-    # ── Loss koeficijenti (class-level defaults) ─────────────────
+    # ── Loss coeficient (class-level defaults) ─────────────────
 
-    λ1: float = 1.0   # data loss weight
-    λ2: float = 1.0   # PDE loss weight
-    λ3: float = 1.0   # BC loss weight
+    lamda1: float = 1.0   # data loss weight
+    lamda2: float = 1.0   # PDE loss weight
+    lambda3: float = 1.0   # BC loss weight
