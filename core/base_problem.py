@@ -10,14 +10,6 @@ from torch import Tensor
 from data.preprocessing.feature_pipeline import FeatureBatch
 
 
-class CompiledProblem:
-    def __init__(self,problem,model,data_source,adaptive_weights,weight_scheduler):
-        self.problem = problem
-        self.model = model
-        self.data_source = data_source
-        self.adaptive_weights = adaptive_weights
-        self.weight_scheduler = weight_scheduler
-
 
 class PhysicsProblem(ABC):
     # User must Define
@@ -107,3 +99,64 @@ class PhysicsProblem(ABC):
     lamda1: float = 1.0   # data loss weight
     lamda2: float = 1.0   # PDE loss weight
     lamda3: float = 1.0   # BC loss weight
+
+"""
+compiled_problem.py
+Kontejner koji spaja PhysicsProblem, PhysicsModel i DataSource
+u jedan objekat koji se prosleđuje traineru.
+
+Živi u: core/compiled_problem.py
+
+Upotreba:
+    compiled = problem.compile(
+        model=model,
+        data_source=source,
+        adaptive_weights=False,
+    )
+    trainer = PINNTrainer.from_compiled(compiled, config=config)
+"""
+
+from dataclasses import dataclass, field
+from typing import Optional, Any
+
+
+@dataclass
+class CompiledProblem:
+    """
+    A container that holds everything a trainer needs to know before starting training.
+
+    Attributes:
+    problem: PhysicsProblem instance - defines physics
+    model: PhysicsModel instance - defines the architecture
+    data_source: DataSource or list[DataSource] - data source
+    adaptive_weights: If True, GradNorm balances the loss components
+    weight_scheduler: Custom LossWeightScheduler - override adaptive_weights
+    metadata: Free dict for additional information (experiment name, etc.)
+
+    Priority for loss weighting:
+    weight_scheduler > adaptive_weights > static w_data/w_pde/w_bc
+    """
+
+    problem:          Any                    # PhysicsProblem
+    model:            Any                    # PhysicsModel
+    data_source:      Any                    # DataSource ili list[DataSource]
+    adaptive_weights: bool                   = False
+    weight_scheduler: Optional[Any]          = None
+    metadata:         dict                   = field(default_factory=dict)
+
+    def __post_init__(self):
+        # Normalizuj data_source uvek u listu za konzistentan tretman
+        if not isinstance(self.data_source, list):
+            self.data_source = [self.data_source]
+
+    def describe(self) -> str:
+        """Kratak opis za logging."""
+        return (
+            f"CompiledProblem(\n"
+            f"  problem  = {self.problem.__class__.__name__},\n"
+            f"  model    = {self.model.__class__.__name__},\n"
+            f"  sources  = {len(self.data_source)} DataSource(s),\n"
+            f"  adaptive = {self.adaptive_weights},\n"
+            f"  metadata = {list(self.metadata.keys())}\n"
+            f")"
+        )
