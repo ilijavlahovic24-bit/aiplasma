@@ -310,3 +310,18 @@ class DataTransformer(object):
 
         collocation = ~boundary
         return boundary, collocation
+
+class FeatureBatchDataset:
+    def __init__(self,batches: list[FeatureBatch]):
+        self.batches=batches
+    def __len__(self):
+        return len(self.batches)
+    def __getitem__(self, idx):
+        return self.batches[idx]
+
+    def split(self, val_ratio: float = 0.2) -> tuple["FeatureBatchDataset", "FeatureBatchDataset"]:
+        length = len(self.batches)
+        val_size = int(length * val_ratio)
+        val_set = self.batches[:val_size]
+        train_set = self.batches[val_size:]
+        return FeatureBatchDataset(train_set), FeatureBatchDataset(val_set)
