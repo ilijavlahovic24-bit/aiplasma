@@ -15,7 +15,7 @@ to physics simulations, with built-in support for:
 ## Project Structure
 AIPlasma/
 ├── analysis/       # Validation, visualization
-├── config/         # Hyperparameters,
+├── config/         # Hyperparameters
 ├── core/           # Base classes, interfaces
 ├── data/           # Data loaders, transforms
 ├── models/         # Model zoo
@@ -25,16 +25,17 @@ AIPlasma/
 ├── docs/       	# Documentation, references
 └── examples/       # Demonstrations with Real-Life Examples
 
+### Completed
+- Base Classes,interfaces
+- Data pipeline
 
 ### In Progress
-- SE3 Transformer implementation (modifying classical transformer)
-- Tokamak turbulence prediction example
+- Physics-Informed Neural Network (PINN) layer
 
 ### Planned
 - Multi-Fidelity training strategy
 - Bayesian uncertainty quantification
-- Physics-Informed Neural Network (PINN) layer
 - Chaos testing for model robustness
 
 ## References and Documentation
-...
+Artificial intelligence-driven advances in nuclear technology: Exploring innovations, applications, and future prospects
