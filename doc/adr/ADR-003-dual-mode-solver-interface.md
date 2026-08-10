@@ -7,9 +7,9 @@ Accepted
 PhysicsSolver needs to compute physical quantities from model predictions.
 Two distinct use cases exist:
 
-1. Post-processing and evaluation — no gradient tracking needed,
+1. Post-processing and evaluation - no gradient tracking needed,
    works with already-computed predictions (ModelOutput)
-2. PDE residual computation during training — requires autograd
+2. PDE residual computation during training - requires autograd
    through the model to compute spatial/temporal derivatives
 
 A single-mode solver would force one of two bad trade-offs:
@@ -33,4 +33,4 @@ Both return SolverOutput. The caller decides which mode is appropriate.
 ## Consequences
 - Subclasses must implement both methods
 - solve() cannot compute quantities that require gradients through the model
-- solve_with_grad() should not be called during inference — only training
+- solve_with_grad() should not be called during inference - only training

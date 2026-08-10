@@ -20,18 +20,15 @@ from torch import Tensor
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# 1. PhysicsEquation — apstraktna baza
-# ════════════════════════════════════════════════════════════════════════════
-
 class PhysicsEquation(ABC):
     """
-    Apstraktna reprezentacija jedne fizičke jednačine u PDE registru.
+   An abstract representation of a physical equation in the PDE register.
 
-    Svaka jednačina implementira:
-        - name()            → jedinstveni identifikator u registru
-        - expected_params() → lista parametara koje jednačina zahteva
-        - residual()        → PDE residual za PINN trening
-        - description()     → matematički opis za dokumentaciju
+    Each equation implements:
+    - name() → unique identifier in the registry
+    - expected_params() → list of parameters that the equation requires
+    - residual() → PDE residual for PINN training
+    - description() → mathematical description for documentation
     """
 
     @abstractmethod
@@ -382,7 +379,7 @@ class HasegawaWakatani(PhysicsEquation):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# 4. Globalni registar — singleton na nivou modula
+# Globalni registar — singleton na nivou modula
 # ════════════════════════════════════════════════════════════════════════════
 
 REGISTRY = PDERegistry()
