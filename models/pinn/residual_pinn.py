@@ -61,6 +61,7 @@ class ResidualPINN(BasePINN):
         act_cls = self.ACTIVATIONS[self.activation]
         act = act_cls()
 
+
         layers = [
             nn.Linear(self.input_dim, self.hidden_size),
             act_cls(),
