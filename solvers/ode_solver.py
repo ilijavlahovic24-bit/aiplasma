@@ -5,9 +5,9 @@ ODE solvers for AIPlasma framework.
 Lives in: solvers/ode_solver.py
 
 Provides three solvers (ADR-008):
-    EulerODESolver    — fixed dt, first-order
-    RK4ODESolver      — fixed dt, fourth-order
-    AdaptiveODESolver — adaptive dt via RK45 error control
+    EulerODESolver    - fixed dt, first-order
+    RK4ODESolver      - fixed dt, fourth-order
+    AdaptiveODESolver - adaptive dt via RK45 error control
 """
 
 import torch
@@ -279,7 +279,7 @@ class AdaptiveODESolver(ODESolver):
         if error > 1: reject step, decrease dt by factor s
         s = 0.9 * (1 / error) ^ 0.2   (standard safety factor)
 
-    step() returns a tuple (SolverOutput, new_dt) — the second
+    step() returns a tuple (SolverOutput, new_dt) - the second
     value is the suggested dt for the next step (ADR-008).
 
     Args:
@@ -373,7 +373,7 @@ class AdaptiveODESolver(ODESolver):
                     dt * self.safety * (1.0 / max(error_norm, 1e-10)) ** 0.2
                 )
             else:
-                # Reject step — reduce dt
+                # Reject step - reduce dt
                 dt = max(
                     self.dt_min,
                     dt * self.safety * (1.0 / error_norm) ** 0.25
@@ -415,7 +415,7 @@ class AdaptiveODESolver(ODESolver):
     ) -> SolverOutput:
         """
         Calls step() with default dt=0.1 and tol=1e-4.
-        Returns only SolverOutput — discards new_dt.
+        Returns only SolverOutput - discards new_dt.
         Use step() directly when new_dt is needed.
         """
         output, _ = self.step(model, batch, dt=0.1, tol=1e-4)

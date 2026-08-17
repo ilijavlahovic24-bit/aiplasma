@@ -21,14 +21,14 @@ class AutogradPDESolver(PDESolver):
     """
     PDE solver using PyTorch autograd for derivative computation.
 
-    Primary solver for PINN training — computes spatial and temporal
+    Primary solver for PINN training - computes spatial and temporal
     derivatives through the model's computational graph, enabling
     physics-informed loss computation.
 
     Two modes (ADR-003):
-        solve()           — post-processing without autograd.
+        solve()           - post-processing without autograd.
                             Receives ModelOutput, returns physical quantities.
-        solve_with_grad() — training mode with full autograd through model.
+        solve_with_grad() - training mode with full autograd through model.
                             Computes PDE residual via PhysicsEquation.residual().
 
     Args:
@@ -43,9 +43,9 @@ class AutogradPDESolver(PDESolver):
             equation=REGISTRY.get("heat_equation_1d")
         )
         output = solver.solve_with_grad(model, batch)
-        # output.quantities["du_dx"]   — spatial derivative
-        # output.quantities["du_dt"]   — temporal derivative
-        # output.residuals["pde"]      — PDE residual
+        # output.quantities["du_dx"]   -spatial derivative
+        # output.quantities["du_dt"]   - temporal derivative
+        # output.residuals["pde"]      - PDE residual
     """
 
     def __init__(self, equation=None):
@@ -71,9 +71,9 @@ class AutogradPDESolver(PDESolver):
 
         Returns:
             SolverOutput with quantities:
-                'u'           — model prediction
-                'u_boundary'  — prediction at boundary points
-                'u_interior'  — prediction at collocation points
+                'u'           - model prediction
+                'u_boundary'  - prediction at boundary points
+                'u_interior'  - prediction at collocation points
         """
         pred = output.pred
 
@@ -112,13 +112,13 @@ class AutogradPDESolver(PDESolver):
         Returns:
             SolverOutput with:
                 quantities:
-                    'u'       — full prediction
-                    'du_dx'   — ∂u/∂x
-                    'du_dt'   — ∂u/∂t
-                    'd2u_dx2' — ∂²u/∂x²
+                    'u'       - full prediction
+                    'du_dx'   - ∂u/∂x
+                    'du_dt'   - ∂u/∂t
+                    'd2u_dx2' - ∂²u/∂x²
                 residuals:
-                    'pde' — PDE residual (if equation is set, else zeros)
-                    'bc'  — boundary condition residual
+                    'pde' - PDE residual (if equation is set, else zeros)
+                    'bc'  - boundary condition residual
         """
         # Enable autograd on coordinates
         coords = batch.coords.clone().requires_grad_(True)
@@ -189,9 +189,9 @@ class AutogradPDESolver(PDESolver):
 
         Returns:
             Dict with keys:
-                'du_dx'   — ∂u/∂x,   shape (N, F)
-                'du_dt'   — ∂u/∂t,   shape (N, F)
-                'd2u_dx2' — ∂²u/∂x², shape (N, F)
+                'du_dx'   - ∂u/∂x,   shape (N, F)
+                'du_dt'   - ∂u/∂t,   shape (N, F)
+                'd2u_dx2' - ∂²u/∂x², shape (N, F)
 
         Raises:
             RuntimeError: If coords does not have requires_grad=True.
@@ -211,8 +211,8 @@ class AutogradPDESolver(PDESolver):
             retain_graph=True,
         )[0]  # (N, D)
 
-        du_dx = first_order[:, 0:1]    # spatial x — first dim
-        du_dt = first_order[:, -1:]    # temporal  — last dim
+        du_dx = first_order[:, 0:1]    # spatial x - first dim
+        du_dt = first_order[:, -1:]    # temporal  - last dim
 
         # Second-order: ∂²u/∂x²
         d2u_dx2 = torch.autograd.grad(
