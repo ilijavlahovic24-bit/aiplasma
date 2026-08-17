@@ -1,8 +1,9 @@
-AIPlasma: AI Framework for Nuclear Physics
+#AIPlasma: AI Framework for Nuclear Physics
 ## Status: Active Development
 
 ## Core Framework Philosophy
 Instead of solving one specific physics problem, i'm building the infrastructure to solve many. This is analogous to PyTorch Lightning for deep learning or ROS for robotics.
+
 
 ## What AIPlasma Does
 AIPlasma provides a framework for applying machine learning 
@@ -39,3 +40,32 @@ AIPlasma/
 
 ## References and Documentation
 Artificial intelligence-driven advances in nuclear technology: Exploring innovations, applications, and future prospects
+
+
+## Acknowledgements
+
+AIPlasma was designed and developed by Ilija Vlahović as part of
+a personal research initiative during the final year of Computer
+Science and Engineering at ETF Belgrade.
+
+**Architectural design and technical decisions:** All framework
+architecture, API design, and physics-informed ML methodology
+were conceived and directed by the author. Every major decision
+is documented in the Architecture Decision Records (ADRs)
+in `doc/adr/`.
+
+**AI assistance:** Claude (Anthropic) was used as a development
+assistant during implementation. Specifically:
+- Code generation and boilerplate implementation based on
+  author-specified designs
+- Formatting and structuring of ADR documentation after
+  author decisions were made
+- Technical discussion and option analysis during design phases
+
+All generated code was reviewed, tested, and validated by the
+author before integration.
+
+**Note for scientific use:** Users building on AIPlasma for
+research purposes should independently verify physical
+formulations and numerical implementations against established
+literature before publication.
