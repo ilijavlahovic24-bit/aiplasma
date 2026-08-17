@@ -1,4 +1,4 @@
-#AIPlasma: AI Framework for Nuclear Physics
+AIPlasma: AI Framework for Nuclear Physics
 ## Status: Active Development
 
 ## Core Framework Philosophy
@@ -29,13 +29,13 @@ AIPlasma/
 ### Completed
 - Base Classes,interfaces
 - Data pipeline
-
-### In Progress
 - Physics-Informed Neural Network (PINN) layer
 
-### Planned
+### In Progress
 - Multi-Fidelity training strategy
 - Bayesian uncertainty quantification
+- 
+### Planned
 - Chaos testing for model robustness
 
 ## References and Documentation
