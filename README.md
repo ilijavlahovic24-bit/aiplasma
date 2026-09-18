@@ -14,6 +14,7 @@ to physics simulations, with built-in support for:
 - Ready-to-use examples for plasma physics problems
 
 ## Project Structure
+```
 AIPlasma/
 ├── analysis/       # Validation, visualization
 ├── config/         # Hyperparameters
@@ -25,7 +26,7 @@ AIPlasma/
 ├── trainers/       # Training strategies
 ├── docs/       	# Documentation, references
 └── examples/       # Demonstrations with Real-Life Examples
-
+```
 ### Completed
 - Base Classes,interfaces
 - Data pipeline
