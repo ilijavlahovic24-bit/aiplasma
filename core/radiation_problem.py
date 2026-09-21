@@ -1,5 +1,6 @@
 from core.base_problem import PhysicsProblem
 
 
-class RadiationPhysicsProblem(PhysicsProblem):
-    pass
+class RadiationProblem(PhysicsProblem):
+    def __init__(self):
+        super().__init__()
