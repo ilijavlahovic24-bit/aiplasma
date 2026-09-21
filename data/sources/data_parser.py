@@ -8,7 +8,7 @@ from typing import Optional, Iterator
 import torch
 from torch import Tensor
 
-from physical_tensor import (
+from data.sources.physical_tensor import (
     PhysicalTensor, CoordinateSystem, UnitSystem, Domain
 )
 

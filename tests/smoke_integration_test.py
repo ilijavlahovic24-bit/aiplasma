@@ -166,6 +166,9 @@ def test_data_layer():
     )
     check("SyntheticDataSource validates", source.validate())
     tensor = source.load()
+    print("tensor type:", type(tensor))
+    print("tensor module:", type(tensor).__module__)
+    print("PhysicalTensor module:", PhysicalTensor.__module__)
     check("SyntheticDataSource load returns PhysicalTensor",
           isinstance(tensor, PhysicalTensor))
     check("SyntheticDataSource correct shape", tensor.n_points() == 100)

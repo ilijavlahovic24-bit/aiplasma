@@ -66,9 +66,9 @@ class BaseTrainer(ABC):
     # ── Framework has — fit() us sealed ───────────────────────
 
     def fit(
-        self,
-        train_loader: DataLoader,
-        val_loader:   Optional[DataLoader] = None,
+            self,
+            train_batches: list,
+            val_batches: Optional[list] = None,
     ) -> TrainingHistory:
 
         self._fire("on_train_start")
@@ -79,21 +79,21 @@ class BaseTrainer(ABC):
             # ── Training ────────────────────────────────────────
             self.model.train()
             train_losses = []
-            for batch in train_loader:
+            for batch in train_batches:
                 batch = self._to_device(batch)
-                loss  = self.train_step(batch)
+                loss = self.train_step(batch)
                 train_losses.append(loss.item())
             epoch_train_loss = sum(train_losses) / len(train_losses)
 
-            # ── Validation ──────────────────────────────────────
+            # ── Validacija ──────────────────────────────────────
             epoch_val_loss = None
-            if val_loader and epoch % self.config.val_frequency == 0:
+            if val_batches and epoch % self.config.val_frequency == 0:
                 self.model.eval()
                 val_losses = []
                 with torch.no_grad():
-                    for batch in val_loader:
+                    for batch in val_batches:
                         batch = self._to_device(batch)
-                        loss  = self.val_step(batch)
+                        loss = self.val_step(batch)
                         val_losses.append(loss.item())
                 epoch_val_loss = sum(val_losses) / len(val_losses)
 
@@ -108,6 +108,9 @@ class BaseTrainer(ABC):
                 self._log(epoch, epoch_train_loss, epoch_val_loss)
 
             self._fire("on_epoch_end", epoch=epoch, history=self.history)
+
+            if getattr(self, "_stop_training", False):
+                break
 
         self._fire("on_train_end", history=self.history)
         return self.history
