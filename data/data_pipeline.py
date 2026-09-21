@@ -6,8 +6,12 @@
 #Data splitting
 from typing import Optional
 
-from data_parser import DataSource
-from data_transformer import TransformerConfig, DataTransformer, FeatureBatchDataset
+from typing import Optional
+
+from data.sources.data_parser import DataSource
+from data.preprocessing.data_transformer import TransformerConfig, DataTransformer, FeatureBatchDataset
+
+
 
 
 class DataPipeline:

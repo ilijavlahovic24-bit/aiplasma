@@ -6,8 +6,14 @@ from typing import Optional
 import torch
 from torch import Tensor
 
-from feature_pipeline import FeatureBatch
-from physical_tensor import PhysicalTensor, Domain
+from dataclasses import dataclass, field
+from typing import Optional
+
+import torch
+from torch import Tensor
+
+from data.preprocessing.feature_pipeline import FeatureBatch
+from data.sources.physical_tensor import PhysicalTensor, Domain
 
 
 @dataclass
@@ -321,7 +327,7 @@ class FeatureBatchDataset:
 
     def split(self, val_ratio: float = 0.2) -> tuple["FeatureBatchDataset", "FeatureBatchDataset"]:
         length = len(self.batches)
-        val_size = int(length * val_ratio)
+        val_size = max(1, int(length * val_ratio))  # ← minimum 1
         val_set = self.batches[:val_size]
         train_set = self.batches[val_size:]
         return FeatureBatchDataset(train_set), FeatureBatchDataset(val_set)
