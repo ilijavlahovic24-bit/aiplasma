@@ -6,27 +6,19 @@ DataPipeline test using SyntheticDataSource.
 Run:
     python tests/test_data_pipeline_synthetic.py
 """
-
 import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import math
 import time
 import torch
 
-from data_parser import DataSourceConfig, SyntheticDataSource
-from data_pipeline import DataPipeline
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from data.sources.physical_tensor import (
-    PhysicalTensor, UnitSystem, Domain, CoordinateSystem
-)
-
-from data.preprocessing.feature_pipeline import FeatureBatch
-from data.preprocessing.data_transformer import (
-    DataTransformer, TransformerConfig, FidelityAssigner, FidelityConfig, FeatureBatchDataset
-)
-
+from data.data_parser import DataSourceConfig, SyntheticDataSource
+from data.data_pipeline import DataPipeline
+from data.sources.physical_tensor import PhysicalTensor, UnitSystem, Domain, CoordinateSystem
+from data.preprocessing.feature_pipeline import FeatureBatch, FeatureBatchDataset
+from data.preprocessing.data_transformer import DataTransformer, TransformerConfig, FidelityAssigner, FidelityConfig
 # ════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ════════════════════════════════════════════════════════════════════════════

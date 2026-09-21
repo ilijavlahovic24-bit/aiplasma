@@ -79,7 +79,6 @@ class BayesianTrainer(BaseTrainer):
                 mode="min",
                 factor=0.5,
                 patience=10,
-                verbose=False,
             )
             if scheduler else None
         )

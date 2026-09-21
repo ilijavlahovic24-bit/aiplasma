@@ -15,7 +15,26 @@ class ModelOutput:
     uncertainty: Optional[Tensor] = None
     aux: dict = field(default_factory=dict)
 
-class PhysicsModel(ABC):
+import sys
+print(sys.path)
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Optional
+
+import torch
+import torch.nn as nn
+from torch import Tensor
+from data.preprocessing.feature_pipeline import FeatureBatch
+
+
+@dataclass
+class ModelOutput:
+    pred: Tensor
+    uncertainty: Optional[Tensor] = None
+    aux: dict = field(default_factory=dict)
+
+
+class PhysicsModel(nn.Module, ABC):
 
     # ── Korisnik MORA da implementira ───────────────────────────
 
@@ -45,4 +64,4 @@ class PhysicsModel(ABC):
         total = sum(p.numel() for p in self.parameters())
         return f"{self.__class__.__name__}: {total:,} parameters"
 
-print("Model")
+
