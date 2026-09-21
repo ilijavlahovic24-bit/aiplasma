@@ -25,22 +25,23 @@ import math
 import time
 import torch
 
+# sys.path.insert MORA biti prvi
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Sada svi importi koriste paketne putanje
+from data.preprocessing.feature_pipeline import FeatureBatch
+from data_parser import DataSourceConfig, SyntheticDataSource
+from data.data_pipeline import DataPipeline
 from core.material_problem import NuclearMaterialProblem
 from core.radiation_problem import RadiationProblem
-from data_parser import DataSourceConfig, SyntheticDataSource
-from feature_pipeline import FeatureBatch
 from models.pinn.base_pinn import BasePINN
 from models.pinn.residual_pinn import ResidualPINN
 from trainers.callbacks.mf_trainer import MultiFidelityConfig, MultiFidelityTrainer
 
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 
 from data.sources.physical_tensor import PhysicalTensor, UnitSystem, Domain, CoordinateSystem
 
-from data.preprocessing.data_transformer import DataTransformer, TransformerConfig, FidelityAssigner, \
-    FeatureBatchDataset
+from data.preprocessing.data_transformer import DataTransformer, TransformerConfig, FidelityAssigner,FeatureBatchDataset
 from core.base_model import ModelOutput
 from core.base_problem import PhysicsProblem, CompiledProblem
 from core.base_solver import SolverOutput, SolverInfo
@@ -166,9 +167,6 @@ def test_data_layer():
     )
     check("SyntheticDataSource validates", source.validate())
     tensor = source.load()
-    print("tensor type:", type(tensor))
-    print("tensor module:", type(tensor).__module__)
-    print("PhysicalTensor module:", PhysicalTensor.__module__)
     check("SyntheticDataSource load returns PhysicalTensor",
           isinstance(tensor, PhysicalTensor))
     check("SyntheticDataSource correct shape", tensor.n_points() == 100)
@@ -176,6 +174,9 @@ def test_data_layer():
     # DataTransformer
     transformer = DataTransformer()
     fb_list     = transformer.transform([tensor])
+    print("fb type:", type(fb_list[0]))
+    print("fb module:", type(fb_list[0]).__module__)
+    print("FeatureBatch module:", FeatureBatch.__module__)
     check("DataTransformer returns list of FeatureBatch", len(fb_list) == 1)
     check("DataTransformer output is FeatureBatch", isinstance(fb_list[0], FeatureBatch))
 
