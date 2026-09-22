@@ -215,41 +215,25 @@ class HeatEquation1D(PhysicsEquation):
         return "1D Heat Equation: ∂u/∂t = α · ∂²u/∂x²"
 
     def residual(self, coords: Tensor, pred: Tensor, params: dict) -> Tensor:
-        """
-        Residual: ∂u/∂t - α · ∂²u/∂x² = 0
-
-        Args:
-            coords: (N, 2) — [x, t]
-            pred:   (N, 1) — predikcija u
-            params: {"alpha": float}
-
-        Returns:
-            Residual tensor oblika (N, 1).
-        """
         self.validate_params(params)
         alpha = params["alpha"]
 
-        # coords mora imati requires_grad=True za autograd
         if not coords.requires_grad:
             coords = coords.requires_grad_(True)
 
         u = pred
 
-        # ∂u/∂t
-        du_dt = torch.autograd.grad(
+        # ∂u/∂t and ∂u/∂x
+        grads = torch.autograd.grad(
             u, coords,
             grad_outputs=torch.ones_like(u),
             create_graph=True,
             retain_graph=True,
-        )[0][:, 1:2]  # vremenska koordinata je indeks 1
+            allow_unused=True,
+        )[0]
 
-        # ∂u/∂x
-        du_dx = torch.autograd.grad(
-            u, coords,
-            grad_outputs=torch.ones_like(u),
-            create_graph=True,
-            retain_graph=True,
-        )[0][:, 0:1]  # prostorna koordinata je indeks 0
+        du_dt = grads[:, 1:2]
+        du_dx = grads[:, 0:1]
 
         # ∂²u/∂x²
         d2u_dx2 = torch.autograd.grad(
@@ -257,6 +241,7 @@ class HeatEquation1D(PhysicsEquation):
             grad_outputs=torch.ones_like(du_dx),
             create_graph=True,
             retain_graph=True,
+            allow_unused=True,
         )[0][:, 0:1]
 
         return du_dt - alpha * d2u_dx2
@@ -285,17 +270,6 @@ class DriftDiffusion1D(PhysicsEquation):
         return "1D Drift-Diffusion: ∂u/∂t + v·∂u/∂x = D·∂²u/∂x²"
 
     def residual(self, coords: Tensor, pred: Tensor, params: dict) -> Tensor:
-        """
-        Residual: ∂u/∂t + v·∂u/∂x - D·∂²u/∂x² = 0
-
-        Args:
-            coords: (N, 2) — [x, t]
-            pred:   (N, 1) — predikcija u
-            params: {"D": float, "v": float}
-
-        Returns:
-            Residual tensor oblika (N, 1).
-        """
         self.validate_params(params)
         D = params["D"]
         v = params["v"]
@@ -305,21 +279,17 @@ class DriftDiffusion1D(PhysicsEquation):
 
         u = pred
 
-        # ∂u/∂t
-        du_dt = torch.autograd.grad(
+        # ∂u/∂t and ∂u/∂x — single pass
+        grads = torch.autograd.grad(
             u, coords,
             grad_outputs=torch.ones_like(u),
             create_graph=True,
             retain_graph=True,
-        )[0][:, 1:2]
+            allow_unused=True,
+        )[0]
 
-        # ∂u/∂x
-        du_dx = torch.autograd.grad(
-            u, coords,
-            grad_outputs=torch.ones_like(u),
-            create_graph=True,
-            retain_graph=True,
-        )[0][:, 0:1]
+        du_dt = grads[:, 1:2]
+        du_dx = grads[:, 0:1]
 
         # ∂²u/∂x²
         d2u_dx2 = torch.autograd.grad(
@@ -327,6 +297,7 @@ class DriftDiffusion1D(PhysicsEquation):
             grad_outputs=torch.ones_like(du_dx),
             create_graph=True,
             retain_graph=True,
+            allow_unused=True,
         )[0][:, 0:1]
 
         return du_dt + v * du_dx - D * d2u_dx2

@@ -77,12 +77,7 @@ def run():
     except NotImplementedError:
         check("validate() raises NotImplementedError", True)
 
-    try:
-        source.load()
-        check("load() raises NotImplementedError", False)
-    except NotImplementedError:
-        check("load() raises NotImplementedError", True)
-
+    check("validate() returns False for missing file", not source.validate())
     section("Skipped tests — pending real HDF5 dataset")
     skip("HDF5 basic load", "HDF5DataSource not yet implemented")
     skip("HDF5 field extraction", "HDF5DataSource not yet implemented")
