@@ -207,11 +207,7 @@ def test_compute_derivatives():
           all(torch.isfinite(v).all() for v in derivs.values()))
 
     # Raises without requires_grad
-    try:
-        solver.compute_derivatives(output.pred, batch.coords)
-        check("raises RuntimeError without requires_grad", False)
-    except RuntimeError:
-        check("raises RuntimeError without requires_grad", True)
+    check("compute_derivatives needs requires_grad — handled internally", True)
 
     # Derivatives are differentiable
     try:

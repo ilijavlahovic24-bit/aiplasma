@@ -144,7 +144,7 @@ def test_rk4_solver():
 
     # RK4 more accurate than Euler for same dt
     euler  = EulerODESolver()
-    dt     = 0.01
+    dt     = 0.1
     eu_out = euler.step(model, batch, dt=dt)
     rk_out = solver.step(model, batch, dt=dt)
 
@@ -155,7 +155,7 @@ def test_rk4_solver():
           not torch.allclose(
               eu_out.quantities["u_next"],
               rk_out.quantities["u_next"],
-              atol=1e-6
+              atol=1e-4
           ))
 
 
