@@ -71,13 +71,8 @@ def run():
     source = HDF5DataSource(path="/nonexistent/data.h5", config=config)
     check("HDF5DataSource instantiates", source is not None)
 
-    try:
-        source.validate()
-        check("validate() raises NotImplementedError", False)
-    except NotImplementedError:
-        check("validate() raises NotImplementedError", True)
-
     check("validate() returns False for missing file", not source.validate())
+
     section("Skipped tests — pending real HDF5 dataset")
     skip("HDF5 basic load", "HDF5DataSource not yet implemented")
     skip("HDF5 field extraction", "HDF5DataSource not yet implemented")

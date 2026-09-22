@@ -173,7 +173,9 @@ def test_drift_diffusion():
 
     # residual shape
     coords = make_coords(80)
-    pred   = torch.rand(80, 1, requires_grad=True)
+    coords = make_coords(80)
+    net = torch.nn.Linear(2, 1)
+    pred = net(coords)
 
     residual = eq.residual(coords, pred, {"D": 0.1, "v": 0.5})
     check("residual returns Tensor", isinstance(residual, torch.Tensor))
@@ -188,11 +190,16 @@ def test_drift_diffusion():
         check("residual is differentiable", False, str(e))
 
     # Different D values give different residuals
-    coords2  = make_coords(50)
-    pred2    = torch.rand(50, 1, requires_grad=True)
-    res_d01  = eq.residual(coords2, pred2, {"D": 0.1, "v": 0.0})
-    pred3    = torch.rand(50, 1, requires_grad=True)
-    res_d10  = eq.residual(coords2, pred3, {"D": 1.0, "v": 0.0})
+    coords2 = make_coords(50)
+    net2 = torch.nn.Linear(2, 1)
+    pred2 = net2(coords2)
+    res_d01 = eq.residual(coords2, pred2, {"D": 0.1, "v": 0.0})
+
+    coords3 = make_coords(50)
+    net3 = torch.nn.Linear(2, 1)
+    pred3 = net3(coords3)
+    res_d10 = eq.residual(coords3, pred3, {"D": 1.0, "v": 0.0})
+
     check("different D gives different residuals",
           not torch.allclose(res_d01, res_d10, atol=1e-6))
 

@@ -2,6 +2,7 @@
 physics_constraints.py
 PDE registar i konkretne fizičke jednačine za AIPlasma framework.
 
+Živi u: solvers/physics_constraints.py
 
 Upotreba:
     from solvers.physics_constraints import REGISTRY
@@ -20,15 +21,18 @@ from torch import Tensor
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# 1. PhysicsEquation — apstraktna baza
+# ════════════════════════════════════════════════════════════════════════════
+
 class PhysicsEquation(ABC):
     """
-   An abstract representation of a physical equation in the PDE register.
+    Apstraktna reprezentacija jedne fizičke jednačine u PDE registru.
 
-    Each equation implements:
-    - name() → unique identifier in the registry
-    - expected_params() → list of parameters that the equation requires
-    - residual() → PDE residual for PINN training
-    - description() → mathematical description for documentation
+    Svaka jednačina implementira:
+        - name()            → jedinstveni identifikator u registru
+        - expected_params() → lista parametara koje jednačina zahteva
+        - residual()        → PDE residual za PINN trening
+        - description()     → matematički opis za dokumentaciju
     """
 
     @abstractmethod
@@ -221,29 +225,33 @@ class HeatEquation1D(PhysicsEquation):
         if not coords.requires_grad:
             coords = coords.requires_grad_(True)
 
-        u = pred
-
-        # ∂u/∂t and ∂u/∂x
+        # First-order gradients — single pass
         grads = torch.autograd.grad(
-            u, coords,
-            grad_outputs=torch.ones_like(u),
+            pred, coords,
+            grad_outputs=torch.ones_like(pred),
             create_graph=True,
             retain_graph=True,
             allow_unused=True,
         )[0]
 
+        if grads is None:
+            return torch.zeros_like(pred)
+
         du_dt = grads[:, 1:2]
         du_dx = grads[:, 0:1]
 
-        # ∂²u/∂x²
-        d2u_dx2 = torch.autograd.grad(
-            du_dx, coords,
-            grad_outputs=torch.ones_like(du_dx),
+        # Second-order: ∂²u/∂x²
+        grads2 = torch.autograd.grad(
+            grads[:, 0:1].sum(), coords,
             create_graph=True,
             retain_graph=True,
             allow_unused=True,
-        )[0][:, 0:1]
+        )[0]
 
+        if grads2 is None:
+            return du_dt
+
+        d2u_dx2 = grads2[:, 0:1]
         return du_dt - alpha * d2u_dx2
 
 
@@ -277,29 +285,33 @@ class DriftDiffusion1D(PhysicsEquation):
         if not coords.requires_grad:
             coords = coords.requires_grad_(True)
 
-        u = pred
-
-        # ∂u/∂t and ∂u/∂x — single pass
+        # First-order gradients — single pass for ∂u/∂t and ∂u/∂x
         grads = torch.autograd.grad(
-            u, coords,
-            grad_outputs=torch.ones_like(u),
+            pred, coords,
+            grad_outputs=torch.ones_like(pred),
             create_graph=True,
             retain_graph=True,
             allow_unused=True,
         )[0]
 
+        if grads is None:
+            return torch.zeros_like(pred)
+
         du_dt = grads[:, 1:2]
         du_dx = grads[:, 0:1]
 
-        # ∂²u/∂x²
-        d2u_dx2 = torch.autograd.grad(
-            du_dx, coords,
-            grad_outputs=torch.ones_like(du_dx),
+        # Second-order: ∂²u/∂x²
+        grads2 = torch.autograd.grad(
+            grads[:, 0:1].sum(), coords,
             create_graph=True,
             retain_graph=True,
             allow_unused=True,
-        )[0][:, 0:1]
+        )[0]
 
+        if grads2 is None:
+            return du_dt + v * du_dx
+
+        d2u_dx2 = grads2[:, 0:1]
         return du_dt + v * du_dx - D * d2u_dx2
 
 
@@ -350,7 +362,7 @@ class HasegawaWakatani(PhysicsEquation):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# Globalni registar — singleton na nivou modula
+# 4. Globalni registar — singleton na nivou modula
 # ════════════════════════════════════════════════════════════════════════════
 
 REGISTRY = PDERegistry()
