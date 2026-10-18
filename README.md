@@ -31,16 +31,25 @@ AIPlasma/
 - Base Classes,interfaces
 - Data pipeline
 - Physics-Informed Neural Network (PINN) layer
-
-### In Progress
 - Multi-Fidelity training strategy
 - Bayesian uncertainty quantification
-- 
+
+### In Progress
+- CLI
+- RLTrainer + PlasmaEnvironment + SyntheticPlasmaEnv
+
 ### Planned
-- Chaos testing for model robustness
+- HDF5DataSource
+- SE3 Transformer model
+- NuclearMaterialProblem
+- RadiationProblem
+- HasegawaWakatani.residual()
 
 ## References and Documentation
-Artificial intelligence-driven advances in nuclear technology: Exploring innovations, applications, and future prospects
+1. Artificial intelligence-driven advances in nuclear technology: Exploring innovations, applications, and future prospects-Fatima Ezzahra Arhounia, 
+Maged Ahmed Saleh Abdoa, Saad Ouakkasa, Mohamed Lhadi Bouhssaa, Aziz Boukhaira
+2. Attention is all you need -Ashish Vaswani
+3. 
 
 
 ## Acknowledgements
