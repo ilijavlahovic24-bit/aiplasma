@@ -46,10 +46,14 @@ AIPlasma/
 - HasegawaWakatani.residual()
 
 ## References and Documentation
-1. Artificial intelligence-driven advances in nuclear technology: Exploring innovations, applications, and future prospects-Fatima Ezzahra Arhounia, 
-Maged Ahmed Saleh Abdoa, Saad Ouakkasa, Mohamed Lhadi Bouhssaa, Aziz Boukhaira
-2. Attention is all you need -Ashish Vaswani
-3. 
+1. Artificial intelligence-driven advances in nuclear technology: Exploring innovations, applications, and future prospects-Fatima Ezzahra Arhounia, Maged Ahmed Saleh Abdoa, 
+Saad Ouakkasa, Mohamed Lhadi Bouhssaa, Aziz Boukhaira
+2. Attention is all you need - Ashish Vaswani
+3. Physics-Informed Neural Networks- Raissi et al. (2019) 
+4. Multi-fidelity learning- Meng & Karniadakis (2020) 
+5. MC Dropout / Bayesian approximation - Gal & Ghahramani (2016)
+6. Hasegawa & Wakatani (1983) - Plasma turbulence model
+7. Degrave et al. (2022) - RL for tokamak plasma control
 
 
 ## Acknowledgements
