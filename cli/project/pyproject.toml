@@ -1,0 +1,5 @@
+[project]
+dependencies = ["click", "pyyaml", "torch"]
+
+[project.scripts]
+aiplasma = "cli.main:main"
