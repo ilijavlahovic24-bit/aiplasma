@@ -6,7 +6,6 @@ Lives in: trainers/environments/plasma_env.py
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from typing import Optional
 import torch
 from torch import Tensor
@@ -114,15 +113,24 @@ class SyntheticPlasmaEnv(PlasmaEnvironment):
 
     Args:
         n_points:  Number of spatial points. Default: 50.
-        u_target:  Target temperature profile. Default: sin(πx).
+        u_target:  Target temperature profile, shape (n_points,).
+                   Default: sin(pi * x).
     """
 
-    def __init__(self, n_points: int = 50):
+    def __init__(self, n_points: int = 50, u_target: Optional[Tensor] = None):
         self.n_points = n_points
         self._x       = torch.linspace(0, 1, n_points)
         self._t       = torch.zeros(n_points)
-        self._u       = torch.sin(torch.pi * self._x)   # initial profile
-        self._u_target = torch.sin(torch.pi * self._x)  # target profile
+        self._u       = torch.sin(torch.pi * self._x)  # initial profile
+
+        if u_target is None:
+            self._u_target = torch.sin(torch.pi * self._x)
+        else:
+            if u_target.shape != (n_points,):
+                raise ValueError(
+                    f"u_target must have shape ({n_points},), got {tuple(u_target.shape)}"
+                )
+            self._u_target = u_target
 
     def step(self, action: Tensor) -> Tensor:
         """

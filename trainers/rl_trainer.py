@@ -10,7 +10,6 @@ Inherits BaseTrainer — reuses fit(), callbacks, and monitoring (ADR-014).
 
 import torch
 from torch import Tensor
-from typing import Optional
 
 from core.base_trainer import BaseTrainer, TrainerConfig
 from core.base_model import PhysicsModel
@@ -33,9 +32,14 @@ class RLTrainer(BaseTrainer):
     train_step() ignores the batch argument from fit() and uses
     env.state() directly — batch parameter kept for interface consistency.
 
+    Policy convention: the model is expected to have output_dim=1, so
+    output.pred has shape (N, 1). It is squeezed to (N,) to produce one
+    control value per spatial point, matching what PlasmaEnvironment
+    implementations such as SyntheticPlasmaEnv expect from `action`.
+
     Args:
-        model:       Policy network (PhysicsModel subclass).
-                     Maps state (FeatureBatch) → action (Tensor).
+        model:       Policy network (PhysicsModel subclass, output_dim=1).
+                     Maps state (FeatureBatch) → per-point action mean.
         problem:     PhysicsProblem defining physics constraints.
         solver:      PhysicsSolver instance.
         config:      TrainerConfig with training hyperparameters.
@@ -47,7 +51,7 @@ class RLTrainer(BaseTrainer):
 
     Example:
         env     = SyntheticPlasmaEnv(n_points=50)
-        policy  = BasePINN(input_dim=2, output_dim=50)
+        policy  = BasePINN(input_dim=2, output_dim=1)
         trainer = RLTrainer(
             model=policy, problem=problem, solver=solver,
             config=TrainerConfig(max_epochs=100),
@@ -56,8 +60,6 @@ class RLTrainer(BaseTrainer):
         history = trainer.fit(train_batches=[env.reset()],
                               val_batches=[env.reset()])
     """
-
-    callbacks: list = []
 
     def __init__(
         self,
@@ -77,6 +79,10 @@ class RLTrainer(BaseTrainer):
         self.n_steps      = n_steps
         self.gamma        = gamma
         self.entropy_coef = entropy_coef
+
+        # Instance attribute — BaseTrainer declares `callbacks` as a class-level
+        # list, which would otherwise be shared across every trainer instance.
+        self.callbacks: list = []
 
         self.optimizer = torch.optim.Adam(
             self.model.parameters(), lr=lr
@@ -103,28 +109,29 @@ class RLTrainer(BaseTrainer):
         self.optimizer.zero_grad()
 
         log_probs = []
+        entropies = []
         rewards   = []
 
         # Collect n_steps of experience
         for _ in range(self.n_steps):
-            state  = self.env.state()
-            state  = self._to_device(state)
+            state = self.env.state()
+            state = self._to_device(state)
 
-            # Policy forward: state → action logits
+            # Policy forward: state → per-point action mean
             output = self.model.forward(state)
-            action_logits = output.pred  # (N, action_dim)
+            action_mean = output.pred.squeeze(-1)  # (N,) — one control value per point
 
             # Sample action from Gaussian policy
-            action_mean = action_logits.mean(dim=0)  # (action_dim,)
-            action_std  = torch.ones_like(action_mean) * 0.1
-            dist        = torch.distributions.Normal(action_mean, action_std)
-            action      = dist.sample()
-            log_prob    = dist.log_prob(action).sum()
+            action_std = torch.ones_like(action_mean) * 0.1
+            dist       = torch.distributions.Normal(action_mean, action_std)
+            action     = dist.sample()
+            log_prob   = dist.log_prob(action).sum()
 
             # Step environment
             reward = self.env.step(action.detach().cpu())
 
             log_probs.append(log_prob)
+            entropies.append(dist.entropy().sum())
             rewards.append(reward.item())
 
             if self.env.is_terminal():
@@ -132,17 +139,18 @@ class RLTrainer(BaseTrainer):
                 break
 
         # Compute discounted returns
-        returns    = self._compute_returns(rewards)
-        returns    = torch.tensor(returns, dtype=torch.float32, device=self.device)
-        returns    = (returns - returns.mean()) / (returns.std() + 1e-8)
+        returns = self._compute_returns(rewards)
+        returns = torch.tensor(returns, dtype=torch.float32, device=self.device)
+        returns = (returns - returns.mean()) / (returns.std() + 1e-8)
 
         # REINFORCE loss: -sum(log_prob * return)
-        log_probs_t  = torch.stack(log_probs)
-        policy_loss  = -(log_probs_t * returns).mean()
+        log_probs_t = torch.stack(log_probs)
+        policy_loss = -(log_probs_t * returns).mean()
 
-        # Entropy regularization — encourages exploration
-        entropy_loss = -self.entropy_coef * dist.entropy().mean()
-        loss         = policy_loss + entropy_loss
+        # Entropy regularization — encourages exploration.
+        # Averaged over every step collected in this episode, not just the last.
+        entropy_loss = -self.entropy_coef * torch.stack(entropies).mean()
+        loss = policy_loss + entropy_loss
 
         loss.backward()
         self.optimizer.step()
@@ -169,7 +177,7 @@ class RLTrainer(BaseTrainer):
             state  = self._to_device(state)
             output = self.model.forward(state)
 
-            action_mean = output.pred.mean(dim=0)
+            action_mean = output.pred.squeeze(-1)  # same convention as train_step
             reward      = self.env.step(action_mean.detach().cpu())
             total_reward += reward.item()
             steps        += 1
