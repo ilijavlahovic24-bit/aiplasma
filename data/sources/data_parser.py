@@ -35,7 +35,7 @@ class DataSource(ABC):
         - stream() → loads data in chunks (for large datasets)
         - validate() → checks data integrity
 
-        The user does not implement the pipeline logic — only the source description.
+        The user does not implement the pipeline logic - only the source description.
         FidelityAssigner in the Preprocessing layer assigns fidelity_level
         only when all sources have been loaded and compared with each other.
         """
@@ -251,58 +251,155 @@ class CSVDataSource(DataSource):
 
 class HDF5DataSource(DataSource):
     """
-    Stub for HDF5 izvor — typical format for simulations(GENE, GS2, CGYRO).
+    HDF5 source — typical format for simulation output (GENE, GS2, CGYRO).
 
+    Expected default layout:
+        /coordinates — space-time grid, shape (N, D)
+        /fields      — physical fields, shape (N, F)  (or (N,) for one field)
+
+    Dataset names are configurable, nested paths are supported:
+        HDF5DataSource(path, config, coordinates_key="grid/xt", fields_key="phi/data")
+
+    For layouts that cannot be expressed with two dataset names, subclass
+    and override BOTH hooks: _n_rows() and _parse_hdf5().
+
+    max_points selects a random subset, consistent with the other sources.
+    Rows are read from disk in increasing order (an h5py requirement),
+    so the subset is random but not shuffled.
+
+    stream() reads chunks directly from disk, without loading the whole file.
     """
 
-    def __init__(self, path: str, config: DataSourceConfig):
+    def __init__(
+        self,
+        path: str,
+        config: DataSourceConfig,
+        coordinates_key: str = "coordinates",
+        fields_key: str = "fields",
+    ):
         super().__init__(config)
         self.path = Path(path)
+        self.coordinates_key = coordinates_key
+        self.fields_key = fields_key
+
+    # ── DataSource interface ─────────────────────────────────────────────────
 
     def validate(self) -> bool:
         if not self.path.exists():
-            print(f"[HDF5DataSource] GREŠKA: fajl nije pronađen: {self.path}")
+            print(f"[HDF5DataSource] ERROR: file not found: {self.path}")
             return False
         try:
             import h5py
-            with h5py.File(self.path, "r") as f:
-                keys = list(f.keys())
-                if not keys:
-                    print("[HDF5DataSource] GREŠKA: HDF5 fajl je prazan.")
-                    return False
-            return True
         except ImportError:
-            print("[HDF5DataSource] GREŠKA: h5py nije instaliran. pip install h5py")
+            print("[HDF5DataSource] ERROR: h5py is not installed. pip install h5py")
             return False
+        try:
+            with h5py.File(self.path, "r") as f:
+                if not list(f.keys()):
+                    print("[HDF5DataSource] ERROR: HDF5 file is empty.")
+                    return False
+                # Fails with KeyError if the configured datasets do not exist
+                self._n_rows(f)
+            return True
         except Exception as e:
-            print(f"[HDF5DataSource] GREŠKA pri otvaranju fajla: {e}")
+            print(f"[HDF5DataSource] ERROR: could not read layout of {self.path}: {e}")
             return False
 
     def load(self) -> PhysicalTensor:
         if not self.validate():
-            raise ValueError(f"HDF5DataSource validacija nije prošla za: {self.path}")
+            raise ValueError(f"HDF5DataSource validation failed for: {self.path}")
 
         import h5py
         with h5py.File(self.path, "r") as f:
-            # Pretpostavka o strukturi HDF5 fajla iz GENE/GS2/CGYRO:
-            #   /coordinates — prostorno-vremenski grid, shape (N, D)
-            #   /fields      — fizička polja, shape (N, F)
-            # Ako fajl ima drugačiju strukturu, korisnik override-uje _parse_hdf5()
-            coords = torch.tensor(f["coordinates"][:], dtype=torch.float32)
-            values = torch.tensor(f["fields"][:], dtype=torch.float32)
+            rows = self._select_rows(self._n_rows(f))
+            coords, values = self._normalize(*self._parse_hdf5(f, rows))
+            meta = self._read_attrs(f)
 
-            # Metadata iz HDF5 atributa ako postoje
-            meta = dict(self.config.metadata)
-            if "experiment_id" in f.attrs:
-                meta["experiment_id"] = str(f.attrs["experiment_id"])
-            if "instrument" in f.attrs:
-                meta["instrument"] = str(f.attrs["instrument"])
+        return self._build(coords, values, meta)
 
-        if self.config.max_points is not None:
-            idx = torch.randperm(coords.shape[0])[:self.config.max_points]
-            coords = coords[idx]
-            values = values[idx]
+    def stream(self, chunk_size: int = 1000) -> Iterator[PhysicalTensor]:
+        """Lazy streaming: each chunk is read from disk on demand."""
+        if not self.validate():
+            raise ValueError(f"HDF5DataSource validation failed for: {self.path}")
 
+        import h5py
+        with h5py.File(self.path, "r") as f:
+            n        = self._n_rows(f)
+            selected = self._select_rows(n)
+            meta     = self._read_attrs(f)
+
+            # selected is slice(None) (everything) or a sorted index array (max_points)
+            full  = isinstance(selected, slice)
+            total = n if full else len(selected)
+
+            for start in range(0, total, chunk_size):
+                end  = min(start + chunk_size, total)
+                rows = slice(start, end) if full else selected[start:end]
+                coords, values = self._normalize(*self._parse_hdf5(f, rows))
+                yield self._build(coords, values, {**meta, "chunk": f"{start}:{end}"})
+
+    # ── Hooks for custom layouts ─────────────────────────────────────────────
+
+    def _n_rows(self, f) -> int:
+        """
+        Total number of rows in the file.
+        Override together with _parse_hdf5() for non-standard layouts.
+        """
+        return f[self.coordinates_key].shape[0]
+
+    def _parse_hdf5(self, f, rows) -> tuple:
+        """
+        Reads the given rows from an open h5py file.
+
+        Args:
+            f:    Open h5py.File.
+            rows: slice, or sorted numpy integer array (h5py requires
+                  increasing indices).
+
+        Returns:
+            (coordinates: Tensor (n, D), values: Tensor (n, F))
+        """
+        return (
+            torch.tensor(f[self.coordinates_key][rows], dtype=torch.float32),
+            torch.tensor(f[self.fields_key][rows], dtype=torch.float32),
+        )
+
+    # ── Internals ────────────────────────────────────────────────────────────
+
+    def _select_rows(self, n: int):
+        """slice(None) if everything is read, else a sorted random index array."""
+        limit = self.config.max_points
+        if limit is None or limit >= n:
+            return slice(None)
+        return torch.randperm(n)[:limit].sort().values.numpy()
+
+    @staticmethod
+    def _normalize(coords: Tensor, values: Tensor) -> tuple:
+        """Validates shapes; a 1-D fields dataset becomes (N, 1)."""
+        if values.ndim == 1:
+            values = values.unsqueeze(1)
+        if coords.ndim != 2 or values.ndim != 2:
+            raise ValueError(
+                f"Expected coordinates (N, D) and fields (N, F), "
+                f"got {tuple(coords.shape)} and {tuple(values.shape)}"
+            )
+        if coords.shape[0] != values.shape[0]:
+            raise ValueError(
+                f"Row count mismatch: {coords.shape[0]} coordinate rows "
+                f"vs {values.shape[0]} field rows"
+            )
+        return coords, values
+
+    def _read_attrs(self, f) -> dict:
+        """Metadata from HDF5 attributes, if present."""
+        meta = dict(self.config.metadata)
+        if "experiment_id" in f.attrs:
+            meta["experiment_id"] = str(f.attrs["experiment_id"])
+        if "instrument" in f.attrs:
+            meta["instrument"] = str(f.attrs["instrument"])
+        return meta
+
+    def _build(self, coords: Tensor, values: Tensor, meta: dict) -> PhysicalTensor:
         return PhysicalTensor(
             values=values,
             coordinates=coords,
@@ -311,18 +408,11 @@ class HDF5DataSource(DataSource):
             ),
             coord_system=self.config.coord_system,
             domain=self.config.domain or Domain(t_range=(0.0, 1.0)),
-            metadata={**meta, "source_type": "hdf5", "path": str(self.path)},
-        )
-
-    def _parse_hdf5(self, f) -> tuple:
-        """
-        Hook za custom parsiranje HDF5 strukture.
-        Override kada Vinča podaci imaju drugačiji layout od pretpostavljenog.
-
-        Returns:
-            tuple: (coordinates: Tensor, values: Tensor)
-        """
-        return (
-            torch.tensor(f["coordinates"][:], dtype=torch.float32),
-            torch.tensor(f["fields"][:], dtype=torch.float32),
+            metadata={
+                **meta,
+                "source_type": "hdf5",
+                "path": str(self.path),
+                "coordinates_key": self.coordinates_key,
+                "fields_key": self.fields_key,
+            },
         )
