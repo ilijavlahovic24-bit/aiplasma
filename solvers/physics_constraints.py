@@ -315,29 +315,86 @@ class DriftDiffusion1D(PhysicsEquation):
         return du_dt + v * du_dx - D * d2u_dx2
 
 
+def _grad(f: Tensor, coords: Tensor, allow_zero: bool = False) -> Tensor:
+    """
+    Gradient of f (N, 1) w.r.t. coords (N, D), shape (N, D).
+
+    Uses the sum trick (grad_outputs = ones), so it is exact only for pointwise
+    models, where f[i] depends on coords[i] alone. This is the same assumption
+    the other equations in this module make.
+
+    allow_zero: a missing graph means "derivative is zero" (valid for the
+    second derivative of a linear model). For first derivatives it almost
+    always means pred was not computed from coords, so it raises instead.
+    """
+    g = None
+    if f.requires_grad:
+        g = torch.autograd.grad(
+            f, coords,
+            grad_outputs=torch.ones_like(f),
+            create_graph=True,
+            retain_graph=True,
+            allow_unused=True,
+        )[0]
+
+    if g is None:
+        if allow_zero:
+            return torch.zeros_like(coords)
+        raise RuntimeError(
+            "pred is not connected to coords through autograd. Compute pred "
+            "from the same coords tensor that has requires_grad=True."
+        )
+    return g
+
+
+def _laplacian_2d(grad_f: Tensor, coords: Tensor) -> Tensor:
+    """f_xx + f_yy from grad_f = ∇f of shape (N, D). Returns (N, 1)."""
+    f_xx = _grad(grad_f[:, 0:1], coords, allow_zero=True)[:, 0:1]
+    f_yy = _grad(grad_f[:, 1:2], coords, allow_zero=True)[:, 1:2]
+    return f_xx + f_yy
+
+
+def _bracket(grad_f: Tensor, grad_g: Tensor) -> Tensor:
+    """Poisson bracket [f, g] = f_x g_y - f_y g_x from precomputed gradients."""
+    return grad_f[:, 0:1] * grad_g[:, 1:2] - grad_f[:, 1:2] * grad_g[:, 0:1]
+
+
 class HasegawaWakatani(PhysicsEquation):
     """
-    Hasegawa-Wakatani sistem za turbulenciju plazme.
+    Hasegawa-Wakatani system for resistive drift-wave turbulence, in the
+    mixed form used for PINNs (vorticity is an independent output).
 
-    Sistem od dve spregnute PDE:
-        ∂n/∂t + [φ, n] = D·∇²n + S
-        ∂∇²φ/∂t + [φ, ∇²φ] = C(φ - n) + ν·∇⁴φ
+    Equations (original coupling, fixed background density gradient):
+        ∂n/∂t + [φ, n] = C(φ - n) - κ ∂φ/∂y + D∇²n + S
+        ∂ζ/∂t + [φ, ζ] = C(φ - n) + ν∇²ζ
+        ζ = ∇²φ
+    with the Poisson bracket [A, B] = A_x B_y - A_y B_x.
 
-    gde je:
-        n  — normalizovana gustina plazme
-        φ  — elektrostatički potencijal
-        D  — koeficijent difuzije
-        C  — koeficijent adiabatskog sparivanja
-        nu — koeficijent viskoznosti
+    Layout:
+        coords: (N, 3) = (x, y, t), time last (same as compute_derivatives()).
+        pred:   (N, 3) = (n, φ, ζ).
+        Returns residual of shape (N, 3), channels:
+            (density equation, vorticity equation, ζ - ∇²φ constraint).
 
-    Parametri:
-        D:  Koeficijent difuzije
-        C:  Koeficijent adiabatskog sparivanja
-        nu: Koeficijent viskoznosti
+    Parameters:
+        D:     density diffusion, multiplies ∇²n.
+        C:     adiabaticity (parallel electron response).
+        nu:    kinematic viscosity, multiplies ∇²ζ (= ∇⁴φ).
+        kappa: optional, default 1.0. Background density gradient,
+               κ ≡ -∂ₓ ln n₀. Sign conventions differ between papers, so
+               check yours. In Bohm units (to_bohm_units()) κ = ρ_s / L_n.
+        S:     optional, default 0.0. Source in the density equation
+               (float or tensor broadcastable to (N, 1)).
 
-    Status: Stub — implementacija dolazi u Fazi 3 (PlasmaPhysicsProblem).
-    Poisson bracket i ∇⁴ operator zahtevaju plasma-specifične
-    utility metode iz PlasmaPhysicsProblem.
+    Notes:
+        - The coupling is the original C(φ - n). The "modified" model subtracts
+          zonal (y-averaged) parts, which needs a structured grid in y and is
+          not computable from scattered collocation points.
+        - Only valid for pointwise models (BasePINN, ResidualPINN, ...), not
+          for graph models such as SE3Transformer.
+        - Needs second derivatives of the network output, so use a smooth
+          activation (tanh or silu). ReLU gives zero second derivatives.
+        - Cost: 9 autograd calls per residual (3 first-order, 6 second-order).
     """
 
     def name(self) -> str:
@@ -348,18 +405,65 @@ class HasegawaWakatani(PhysicsEquation):
 
     def description(self) -> str:
         return (
-            "Hasegawa-Wakatani plasma turbulence system:\n"
-            "  ∂n/∂t + [φ, n] = D·∇²n + S\n"
-            "  ∂∇²φ/∂t + [φ, ∇²φ] = C(φ - n) + ν·∇⁴φ"
+            "Hasegawa-Wakatani drift-wave turbulence (mixed form, fields n, phi, zeta):\n"
+            "  ∂n/∂t + [φ, n] = C(φ - n) - κ ∂φ/∂y + D∇²n + S\n"
+            "  ∂ζ/∂t + [φ, ζ] = C(φ - n) + ν∇²ζ\n"
+            "  ζ = ∇²φ"
         )
 
     def residual(self, coords: Tensor, pred: Tensor, params: dict) -> Tensor:
-        raise NotImplementedError(
-            "HasegawaWakatani.residual() dolazi u Fazi 3.\n"
-            "Implementacija zahteva PlasmaPhysicsProblem.poisson_bracket() "
-            "i plasma-specifične operatore."
-        )
+        self.validate_params(params)
 
+        if coords.shape[1] != 3:
+            raise ValueError(
+                f"[{self.name()}] coords must have 3 columns (x, y, t), "
+                f"got {coords.shape[1]}."
+            )
+        if pred.shape[1] != 3:
+            raise ValueError(
+                f"[{self.name()}] pred must have 3 channels (n, phi, zeta), "
+                f"got {pred.shape[1]}."
+            )
+        if not coords.requires_grad:
+            raise RuntimeError(
+                f"[{self.name()}] coords.requires_grad must be True, and pred "
+                f"must be computed from these coords."
+            )
+
+        D, C, nu = params["D"], params["C"], params["nu"]
+        kappa    = params.get("kappa", 1.0)
+        S        = params.get("S", 0.0)
+
+        n, phi, zeta = pred[:, 0:1], pred[:, 1:2], pred[:, 2:3]
+
+        # First-order derivatives, shape (N, 3): columns are (x, y, t)
+        g_n    = _grad(n, coords)
+        g_phi  = _grad(phi, coords)
+        g_zeta = _grad(zeta, coords)
+
+        n_t     = g_n[:, 2:3]
+        zeta_t  = g_zeta[:, 2:3]
+        phi_y   = g_phi[:, 1:2]
+
+        # Second-order derivatives (max order, thanks to the mixed form)
+        lap_n    = _laplacian_2d(g_n, coords)
+        lap_phi  = _laplacian_2d(g_phi, coords)
+        lap_zeta = _laplacian_2d(g_zeta, coords)
+
+        coupling = C * (phi - n)
+
+        res_n = (
+            n_t + _bracket(g_phi, g_n)
+            - coupling + kappa * phi_y
+            - D * lap_n - S
+        )
+        res_zeta = (
+            zeta_t + _bracket(g_phi, g_zeta)
+            - coupling - nu * lap_zeta
+        )
+        res_constraint = zeta - lap_phi
+
+        return torch.cat([res_n, res_zeta, res_constraint], dim=1)
 
 # ════════════════════════════════════════════════════════════════════════════
 # 4. Globalni registar — singleton na nivou modula
