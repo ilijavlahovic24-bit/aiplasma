@@ -1,5 +1,5 @@
 AIPlasma: AI Framework for Nuclear Physics
-## Status: Active Development
+## Status: Maintained
 
 ## Core Framework Philosophy
 Instead of solving one specific physics problem, i'm building the infrastructure to solve many. This is analogous to PyTorch Lightning for deep learning or ROS for robotics.
@@ -33,17 +33,16 @@ AIPlasma/
 - Physics-Informed Neural Network (PINN) layer
 - Multi-Fidelity training strategy
 - Bayesian uncertainty quantification
-
-### In Progress
 - CLI
 - RLTrainer + PlasmaEnvironment + SyntheticPlasmaEnv
-
-### Planned
 - HDF5DataSource
 - SE3 Transformer model
 - NuclearMaterialProblem
 - RadiationProblem
 - HasegawaWakatani.residual()
+
+### Planned
+
 
 ## References and Documentation
 1. Artificial intelligence-driven advances in nuclear technology: Exploring innovations, applications, and future prospects-Fatima Ezzahra Arhounia, Maged Ahmed Saleh Abdoa, 
