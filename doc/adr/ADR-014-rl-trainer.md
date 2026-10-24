@@ -1,7 +1,7 @@
 # ADR-014: RLTrainer Inherits BaseTrainer with PlasmaEnvironment Abstraction
 
 ## Status
-Accepted
+Superseded by ADR-19
 
 ## Context
 AIPlasma needs a Reinforcement Learning trainer for plasma control

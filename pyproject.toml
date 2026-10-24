@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiplasma"
+version = "2.0.0.dev0"
+description = "Physics-informed machine learning for plasma physics and fusion research"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Ilija Vlahovic" }]
+keywords = ["plasma", "fusion", "physics-informed", "PINN", "PyTorch"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.0",
+    "click>=8.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+hdf5     = ["h5py>=3.8", "numpy>=1.23"]
+viz      = ["matplotlib>=3.7"]
+notebook = ["jupyterlab", "matplotlib>=3.7"]
+all      = ["aiplasma[hdf5,viz,notebook]"]
+
+[project.scripts]
+aiplasma = "cli:main"
+
+[tool.setuptools]
+py-modules = ["data_parser", "data_pipeline"]   # only if these two files sit in the repo root
+
+[tool.setuptools.packages.find]
+include = ["core*", "data*", "models*", "solvers*", "trainers*", "cli*"]
