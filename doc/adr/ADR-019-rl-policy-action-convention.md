@@ -1,4 +1,4 @@
-# ADR-018: RLTrainer Policy and Action Convention
+# ADR-019: RLTrainer Policy and Action Convention
 
 ## Status
 Accepted (amends ADR-014)

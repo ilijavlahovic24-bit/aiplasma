@@ -474,3 +474,7 @@ REGISTRY = PDERegistry()
 REGISTRY.register(HeatEquation1D())
 REGISTRY.register(DriftDiffusion1D())
 REGISTRY.register(HasegawaWakatani())
+# Registers the nuclear-material and radiation equations. It must stay at the
+# very bottom: solvers/nuclear_equations.py imports names defined above.
+
+import solvers.nuclear_equations
