@@ -102,20 +102,13 @@ class PINNTrainer(BaseTrainer):
         self.optimizer.step()
         return loss
 
-
     def val_step(self, batch: FeatureBatch) -> Tensor:
-        """
-        Single PINN validation step.
-        No backward pass - only forward and loss computation.
-        Args:
-            batch: FeatureBatch at current validation step.
-        Returns:
-            Loss tensor for this step.
-        """
-        output = self.model.forward(batch)
-        return self.problem.loss(batch, output.pred)
-
-    # ── Scheduler hook ───────────────────────────────────────────────────────
+        # fit() runs validation under torch.no_grad(), but the PDE residual needs autograd.
+        with torch.enable_grad():
+            batch = self._with_grad_coords(batch)
+            output = self.model.forward(batch)
+            loss = self.problem.loss(batch, output.pred)
+        return loss.detach()
 
     def _fire(self, event: str, **kwargs) -> None:
         """
@@ -124,6 +117,10 @@ class PINNTrainer(BaseTrainer):
         super()._fire(event, **kwargs)
 
         if event == "on_epoch_end" and self.lr_scheduler is not None:
+            epoch = kwargs.get("epoch")
             history = kwargs.get("history")
-            if history and history.val_loss:
+            # Step only on epochs where validation ran. Stepping every epoch would
+            # feed the same stale val_loss to the scheduler and use up its patience
+            # when val_frequency > 1.
+            if history and history.val_loss and epoch % self.config.val_frequency == 0:
                 self.lr_scheduler.step(history.val_loss[-1])
