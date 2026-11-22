@@ -9,9 +9,13 @@ Run:
 
 import sys
 import os
+
+
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from data_parser import DataSourceConfig, SyntheticDataSource
-from data_pipeline import DataPipeline
+from data.sources.data_parser import DataSourceConfig,SyntheticDataSource
+
+from data.data_pipeline import DataPipeline
 
 
 import math

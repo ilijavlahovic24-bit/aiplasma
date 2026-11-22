@@ -32,8 +32,8 @@ except ImportError:
     print("h5py is not installed — skipping HDF5 tests (pip install h5py)")
     sys.exit(0)
 
-from data_parser import DataSourceConfig, HDF5DataSource
-from data_pipeline import DataPipeline
+from data.sources.data_parser import DataSourceConfig, HDF5DataSource
+from data.data_pipeline import DataPipeline
 
 from data.sources.physical_tensor import (
     PhysicalTensor, UnitSystem, Domain, CoordinateSystem

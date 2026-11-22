@@ -13,10 +13,9 @@ import os
 import math
 import time
 import torch
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from models.bayesian.uncertenty import UncertaintyMetrics
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from data.preprocessing.feature_pipeline import FeatureBatch
 from core.base_model import ModelOutput

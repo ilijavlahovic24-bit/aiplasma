@@ -86,29 +86,10 @@ class BayesianTrainer(BaseTrainer):
     # ── Abstract implementations ─────────────────────────────────────────────
 
     def train_step(self, batch: FeatureBatch) -> Tensor:
-        """
-        Single Bayesian training step.
-
-        Identical to PINNTrainer.train_step() - Bayesian behavior
-        comes from MC Dropout in the model, not from the loss (ADR-011).
-
-        Steps:
-            1. Zero gradients
-            2. Single forward pass (dropout active during training)
-            3. Compute loss via problem.loss()
-            4. Backward pass
-            5. Optimizer step
-
-        Args:
-            batch: FeatureBatch at current training step.
-
-        Returns:
-            Loss tensor for this step.
-        """
         self.optimizer.zero_grad()
 
-        # model.training=True here - MC Dropout active, single forward pass
-        output = self.model.forward(batch)
+        batch  = self._with_grad_coords(batch)    # PDE residuals need d(pred)/d(coords)
+        output = self.model.forward(batch)        # model.training=True: MC Dropout active
         loss   = self.problem.loss(batch, output.pred)
 
         loss.backward()
@@ -117,32 +98,19 @@ class BayesianTrainer(BaseTrainer):
         return loss
 
     def val_step(self, batch: FeatureBatch) -> Tensor:
-        """
-        Single Bayesian validation step with uncertainty estimation.
+        # fit() runs validation under torch.no_grad(), but the PDE residual needs autograd.
+        with torch.enable_grad():
+            batch     = self._with_grad_coords(batch)
+            mean, std = self.model.sample_predictions(batch)
+            loss      = self.problem.loss(batch, mean)
 
-        Uses sample_predictions() instead of a single forward pass -
-        runs N MC Dropout samples and evaluates loss on the mean
-        prediction. N times slower than PINNTrainer.val_step().
-
-        Args:
-            batch: FeatureBatch at current validation step.
-
-        Returns:
-            Loss tensor computed on mean prediction across MC samples.
-        """
-        # sample_predictions() keeps dropout active internally
-        mean, std = self.model.sample_predictions(batch)
-
-        # Evaluate loss on mean prediction
-        loss = self.problem.loss(batch, mean)
-
-        # Store uncertainty in history.extra for PhysicsMonitor
         avg_uncertainty = float(std.mean())
         if not hasattr(self, "_uncertainty_history"):
             self._uncertainty_history = []
         self._uncertainty_history.append(avg_uncertainty)
 
-        return loss
+        return loss.detach()
+
 
     # ── Scheduler hook ───────────────────────────────────────────────────────
 
@@ -153,8 +121,10 @@ class BayesianTrainer(BaseTrainer):
         super()._fire(event, **kwargs)
 
         if event == "on_epoch_end" and self.lr_scheduler is not None:
+            epoch = kwargs.get("epoch")
             history = kwargs.get("history")
-            if history and history.val_loss:
+            # Step only on epochs where validation ran (see PINNTrainer._fire)
+            if history and history.val_loss and epoch % self.config.val_frequency == 0:
                 self.lr_scheduler.step(history.val_loss[-1])
 
     # ── Uncertainty access ───────────────────────────────────────────────────

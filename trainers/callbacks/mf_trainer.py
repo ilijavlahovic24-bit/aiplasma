@@ -124,51 +124,16 @@ class MultiFidelityTrainer(PINNTrainer):
 
     def train_step(self, batch: FeatureBatch) -> Tensor:
         """
-        Single multi-fidelity training step.
-
-        Skips batches whose fidelity_level is not yet active
-        when curriculum learning is enabled.
-        Loss is weighted by batch.fidelity_weight.
-
-        Args:
-            batch: FeatureBatch with fidelity_level and fidelity_weight.
-
-        Returns:
-            Loss tensor for this step, or zero tensor if batch is skipped.
+        Skips batches whose fidelity level is not active yet (curriculum);
+        otherwise identical to PINNTrainer.train_step().
         """
-        # Curriculum: skip batch if its fidelity level is not yet active
         if (self.mf_config.curriculum and
                 batch.fidelity_level not in self._active_levels):
-            return torch.tensor(0.0, device=self.device, requires_grad=False)
+            return torch.tensor(0.0, device=self.device)
 
-        self.optimizer.zero_grad()
+        return super().train_step(batch)
 
-        output = self.model.forward(batch)
 
-        # fidelity_weight is already embedded in problem.loss()
-        # via batch.fidelity_weight - no additional weighting needed
-        loss = self.problem.loss(batch, output.pred)
-
-        loss.backward()
-        self.optimizer.step()
-
-        return loss
-
-    def val_step(self, batch: FeatureBatch) -> Tensor:
-        """
-        Single multi-fidelity validation step.
-
-        Evaluates on all fidelity levels regardless of curriculum
-        state - validation always uses the full dataset.
-
-        Args:
-            batch: FeatureBatch at current validation step.
-
-        Returns:
-            Loss tensor for this step.
-        """
-        output = self.model.forward(batch)
-        return self.problem.loss(batch, output.pred)
 
     # ── Curriculum learning ───────────────────────────────────────────────────
 
@@ -208,13 +173,13 @@ class MultiFidelityTrainer(PINNTrainer):
 
     def _fire(self, event: str, **kwargs) -> None:
         """
-        Extends PINNTrainer._fire() to update curriculum schedule.
+        Extends PINNTrainer._fire() to update the curriculum schedule.
         """
         super()._fire(event, **kwargs)
 
-        if event == "on_epoch_end":
-            epoch = kwargs.get("epoch", 0)
-            self._schedule_fidelity(epoch)
+        # Update at the START of an epoch, so the epoch about to run uses its own levels
+        if event == "on_epoch_start":
+            self._schedule_fidelity(kwargs.get("epoch", 1))
 
     # ── Status ───────────────────────────────────────────────────────────────
 

@@ -18,11 +18,11 @@ import time
 import csv
 import tempfile
 import torch
-
-from data_parser import DataSourceConfig, CSVDataSource
-from data_pipeline import DataPipeline
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from data.sources.data_parser import DataSourceConfig, CSVDataSource
+from data.data_pipeline import DataPipeline
+
 
 from data.sources.physical_tensor import (
     PhysicalTensor, UnitSystem, Domain, CoordinateSystem
