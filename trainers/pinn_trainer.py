@@ -95,14 +95,13 @@ class PINNTrainer(BaseTrainer):
             Loss tensor for this step.
         """
         self.optimizer.zero_grad()
-
+        batch = self._with_grad_coords(batch)  # PDE residuals need d(pred)/d(coords)
         output = self.model.forward(batch)
-        loss   = self.problem.loss(batch, output.pred)
-
+        loss = self.problem.loss(batch, output.pred)
         loss.backward()
         self.optimizer.step()
-
         return loss
+
 
     def val_step(self, batch: FeatureBatch) -> Tensor:
         """

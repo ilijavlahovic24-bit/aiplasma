@@ -46,7 +46,7 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         print(f"  ✓ {name}")
     else:
         FAILED += 1
-        print(f"  ✗ {name}" + (f" — {detail}" if detail else ""))
+        print(f"  ✗ {name}" + (f" - {detail}" if detail else ""))
 
 
 def section(title: str) -> None:
@@ -516,7 +516,7 @@ def test_solver_integration():
 
 def run():
     print("=" * 60)
-    print("AIPlasma — Nuclear Material and Radiation Problems Test")
+    print("AIPlasma - Nuclear Material and Radiation Problems Test")
     print("=" * 60)
 
     start = time.perf_counter()
@@ -541,7 +541,7 @@ def run():
     if FAILED == 0:
         print("TEST PASSED")
     else:
-        print(f"TEST FAILED ✗ — {FAILED} test(s) failed")
+        print(f"TEST FAILED - {FAILED} test(s) failed")
     print("=" * 60)
 
 

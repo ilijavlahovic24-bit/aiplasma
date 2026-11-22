@@ -148,3 +148,21 @@ class BaseTrainer(ABC):
     ) -> None:
         val_str = f"val_loss={val_loss:.6f}" if val_loss is not None else "val_loss=N/A"
         print(f"[Epoch {epoch:>4}] train_loss={train_loss:.6f}  {val_str}")
+
+    def _with_grad_coords(self, batch: FeatureBatch) -> FeatureBatch:
+        """
+        Returns a copy of batch whose coords require grad.
+
+        PDE residuals differentiate pred with respect to coords, so pred must
+        be computed from coords that already require grad. The copy leaves the
+        caller's tensors untouched.
+        """
+        return FeatureBatch(
+            coords           = batch.coords.detach().clone().requires_grad_(True),
+            fields           = batch.fields,
+            boundary_mask    = batch.boundary_mask,
+            collocation_mask = batch.collocation_mask,
+            physics_params   = batch.physics_params,
+            fidelity_level   = batch.fidelity_level,
+            fidelity_weight  = batch.fidelity_weight,
+        )
